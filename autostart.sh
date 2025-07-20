@@ -1,4 +1,5 @@
 #!/bin/bash
 
-# minimal = lightgray
-feh --bg-fill /home/oy/wallpaper/minimal.png
+feh --bg-fill /home/oy/wallpaper/white.png
+
+# xrdb -merge /home/oy/.Xresources

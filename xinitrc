@@ -2,10 +2,12 @@
 # xclock &
 # xeyes &
 #sleep 2 && xterm &
-xterm &
+xeyes &
 
 # 2. autostart config.
 /home/oy/code/sophy/autostart.sh &
+
+# exec xrdb -merge /home/oy/.Xresources
 
 # 3. Start our window manager.
 export GLOG_logtostderr=1

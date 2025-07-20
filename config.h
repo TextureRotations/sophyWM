@@ -4,7 +4,7 @@
 #define MOD Mod4Mask
 
 const char* menu[]    = {"dmenu_run",      0};
-const char* term[]    = {"urxvt",             0};
+const char* term[]    = {"xterm",             0};
 const char* scrot[]   = {"scr",            0};
 const char* briup[]   = {"bri", "10", "+", 0};
 const char* bridown[] = {"bri", "10", "-", 0};

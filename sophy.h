@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include <time.h>
 
 #define win        (client *t=0, *c=list; c && t!=list->prev; t=c, c=c->next)
 #define ws_save(W) ws_list[W] = list

@@ -1,3 +1,4 @@
+#include <X11/Xatom.h>  // For XInternAtom
 #include <X11/Xlib.h>
 #include <X11/XF86keysym.h>
 #include <X11/keysym.h>
@@ -31,10 +32,12 @@ static void (*events[LASTEvent])(XEvent *e) = {
 #include "config.h"
 
 void square_draw(const Arg arg) {
-    // Create a simple graphics context
-    GC gc = XCreateGC(d, root, 0, NULL);
-    XSetForeground(d, gc, WhitePixel(d, DefaultScreen(d)));
-    XSetLineAttributes(d, gc, 2, LineSolid, CapRound, JoinRound);
+    // Create a dedicated window for the square
+    XSetWindowAttributes attrs;
+    attrs.override_redirect = True;
+    attrs.colormap = DefaultColormap(d, DefaultScreen(d));
+    attrs.background_pixel = 10; // Transparent
+    attrs.border_pixel = 10;
     
     // Get current pointer position
     Window root_return, child_return;
@@ -43,17 +46,39 @@ void square_draw(const Arg arg) {
     XQueryPointer(d, root, &root_return, &child_return,
                  &root_x, &root_y, &win_x, &win_y, &mask_return);
     
-    // Draw square centered at pointer position
-    int size = arg.i; // Size from the key binding argument
-    int x = root_x - size/2;
-    int y = root_y - size/2;
+    int size = arg.i;
+    Window square_win = XCreateWindow(d, root,
+        root_x - size/2, root_y - size/2, size, size, 0,
+        CopyFromParent, InputOutput, CopyFromParent,
+        CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel,
+        &attrs);
     
-    // Draw outline
-    XDrawRectangle(d, root, gc, x, y, size, size);
+    // Set window to be transparent
+    Atom net_wm_window_opacity = XInternAtom(d, "_NET_WM_WINDOW_OPACITY", False);
+    unsigned long opacity = 0x7fffffff; // ~50% opacity
+    XChangeProperty(d, square_win, net_wm_window_opacity, XA_CARDINAL, 32,
+                   PropModeReplace, (unsigned char *)&opacity, 1L);
     
-    // Fill with semi-transparent color
+    // Create graphics context
+    GC gc = XCreateGC(d, square_win, 0, NULL);
     XSetForeground(d, gc, 0x8888FF); // Light blue
-    XFillRectangle(d, root, gc, x, y, size, size);
+    
+    // Draw filled square
+    XFillRectangle(d, square_win, gc, 0, 0, size, size);
+    
+    // Set window to stay on top
+    Atom net_wm_state = XInternAtom(d, "_NET_WM_STATE", False);
+    Atom net_wm_state_above = XInternAtom(d, "_NET_WM_STATE_ABOVE", False);
+    XChangeProperty(d, square_win, net_wm_state, XA_ATOM, 32,
+                   PropModeReplace, (unsigned char *)&net_wm_state_above, 1);
+    
+    // Map the window
+    XMapWindow(d, square_win);
+    
+    // Store the window ID so we can destroy it later
+    static Window prev_square = 0;
+    if (prev_square) XDestroyWindow(d, prev_square);
+    prev_square = square_win;
     
     XFreeGC(d, gc);
 }
