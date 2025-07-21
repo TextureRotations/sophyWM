@@ -14,7 +14,6 @@
 static client       *list = {0}, *ws_list[10] = {0}, *cur;
 static int          ws = 1, sw, sh, wx, wy, numlock = 0;
 static unsigned int ww, wh;
-static Window       black_square = 0;
 
 static Display      *d;
 static XButtonEvent mouse;
@@ -33,111 +32,6 @@ static void (*events[LASTEvent])(XEvent *e) = {
 };
 
 #include "config.h"
-
-void create_black_square(void) {
-    if (black_square) return;
-
-    Display *d = XOpenDisplay(NULL);
-    if (!d) return;
-
-    int size = 50;
-    int x = 10;
-    int y = 10;
-    Window root = DefaultRootWindow(d);
-
-    XSetWindowAttributes attrs;
-    attrs.override_redirect = True;
-    attrs.background_pixel = BlackPixel(d, DefaultScreen(d));
-    attrs.event_mask = 0;  // No events
-    attrs.backing_store = Always;
-
-    black_square = XCreateWindow(d, root,
-        x, y, size, size, 0,
-        CopyFromParent, InputOutput, CopyFromParent,
-        CWOverrideRedirect | CWBackPixel | CWEventMask | CWBackingStore,
-        &attrs);
-
-    // Set window manager hints
-    XWMHints wm_hints;
-    wm_hints.flags = InputHint | StateHint;
-    wm_hints.input = False;  // Never accept input
-    wm_hints.initial_state = NormalState;
-    XSetWMHints(d, black_square, &wm_hints);
-
-    // Set window class and name
-    XClassHint class_hint;
-    class_hint.res_name = "locked_square";
-    class_hint.res_class = "LockedSquare";
-    XSetClassHint(d, black_square, &class_hint);
-
-    // Make it stay on top and sticky
-    Atom net_wm_state = XInternAtom(d, "_NET_WM_STATE", False);
-    Atom states[2];
-    states[0] = XInternAtom(d, "_NET_WM_STATE_ABOVE", False);
-    states[1] = XInternAtom(d, "_NET_WM_STATE_STICKY", False);
-    XChangeProperty(d, black_square, net_wm_state, XA_ATOM, 32,
-                   PropModeReplace, (unsigned char *)states, 2);
-
-    // Completely disable any window management interaction
-    //Atom wm_protocols = XInternAtom(d, "WM_PROTOCOLS", False);
-    Atom wm_delete_window = XInternAtom(d, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(d, black_square, &wm_delete_window, 1);
-
-    XMapWindow(d, black_square);
-    XFlush(d);
-}
-
-void square_draw(const Arg arg) {
-    // Create a dedicated window for the square
-    XSetWindowAttributes attrs;
-    attrs.override_redirect = True;
-    attrs.colormap = DefaultColormap(d, DefaultScreen(d));
-    attrs.background_pixel = 10; // Transparent
-    attrs.border_pixel = 10;
-    
-    // Get current pointer position
-    Window root_return, child_return;
-    int root_x, root_y, win_x, win_y;
-    unsigned int mask_return;
-    XQueryPointer(d, root, &root_return, &child_return,
-                 &root_x, &root_y, &win_x, &win_y, &mask_return);
-    
-    int size = arg.i;
-    Window square_win = XCreateWindow(d, root,
-        root_x - size/2, root_y - size/2, size, size, 0,
-        CopyFromParent, InputOutput, CopyFromParent,
-        CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel,
-        &attrs);
-    
-    // Set window to be transparent
-    Atom net_wm_window_opacity = XInternAtom(d, "_NET_WM_WINDOW_OPACITY", False);
-    unsigned long opacity = 0x7fffffff; // ~50% opacity
-    XChangeProperty(d, square_win, net_wm_window_opacity, XA_CARDINAL, 32,
-                   PropModeReplace, (unsigned char *)&opacity, 1L);
-    
-    // Create graphics context
-    GC gc = XCreateGC(d, square_win, 0, NULL);
-    XSetForeground(d, gc, 0x8888FF); // Light blue
-    
-    // Draw filled square
-    XFillRectangle(d, square_win, gc, 0, 0, size, size);
-    
-    // Set window to stay on top
-    Atom net_wm_state = XInternAtom(d, "_NET_WM_STATE", False);
-    Atom net_wm_state_above = XInternAtom(d, "_NET_WM_STATE_ABOVE", False);
-    XChangeProperty(d, square_win, net_wm_state, XA_ATOM, 32,
-                   PropModeReplace, (unsigned char *)&net_wm_state_above, 1);
-    
-    // Map the window
-    XMapWindow(d, square_win);
-    
-    // Store the window ID so we can destroy it later
-    static Window prev_square = 0;
-    if (prev_square) XDestroyWindow(d, prev_square);
-    prev_square = square_win;
-    
-    XFreeGC(d, gc);
-}
 
 void win_focus(client *c) {
     cur = c;
@@ -387,12 +281,10 @@ int main(void) {
     sw    = XDisplayWidth(d, s);
     sh    = XDisplayHeight(d, s);
 
-	create_black_square();
-
     XSelectInput(d,  root, SubstructureRedirectMask);
     XDefineCursor(d, root, XCreateFontCursor(d, 68));
     input_grab(root);
 
-    while (1 && !XNextEvent(d, &ev)) // 1 && will forever be here.
+    while (1 && !XNextEvent(d, &ev))
         if (events[ev.type]) events[ev.type](&ev);
 }

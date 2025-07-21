@@ -21,7 +21,7 @@ fi
         "$XEPHYR" \
         :100 \
         -ac \
-        -screen 1216x816 \
+        -screen 616x416 \
         -host-cursor
 
  # NOTATION: cc -std=c99 -Wall -Wextra -pedantic -Wold-style-declaration -Wmissing-prototypes -Wno-unused-parameter sophy.c -o sophy -lX11 -lXinerama

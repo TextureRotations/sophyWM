@@ -44,8 +44,6 @@ static struct key keys[] = {
     {MOD|ShiftMask, XK_5, win_to_ws, {.i = 5}},
     {MOD,           XK_6, ws_go,     {.i = 6}},
     {MOD|ShiftMask, XK_6, win_to_ws, {.i = 6}},
-
-	{MOD, XK_s, square_draw, {.i = 100}}  // Draw 100px squares when MOD+d is pressed
 };
 
 #endif

@@ -61,7 +61,4 @@ void win_next(const Arg arg);
 void win_to_ws(const Arg arg);
 void ws_go(const Arg arg);
 
-void create_black_square(void);
-void square_draw(const Arg arg);
-
 static int xerror() { return 0; }
