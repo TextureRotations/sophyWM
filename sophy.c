@@ -6,12 +6,15 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
-
+#include <X11/Xutil.h>  // Required for XSizeHints
+#include <X11/Xatom.h>  // Required for atom operations
+						//
 #include "sophy.h"
 
 static client       *list = {0}, *ws_list[10] = {0}, *cur;
 static int          ws = 1, sw, sh, wx, wy, numlock = 0;
 static unsigned int ww, wh;
+static Window       black_square = 0;
 
 static Display      *d;
 static XButtonEvent mouse;
@@ -30,6 +33,59 @@ static void (*events[LASTEvent])(XEvent *e) = {
 };
 
 #include "config.h"
+
+void create_black_square(void) {
+    if (black_square) return;
+
+    Display *d = XOpenDisplay(NULL);
+    if (!d) return;
+
+    int size = 50;
+    int x = 10;
+    int y = 10;
+    Window root = DefaultRootWindow(d);
+
+    XSetWindowAttributes attrs;
+    attrs.override_redirect = True;
+    attrs.background_pixel = BlackPixel(d, DefaultScreen(d));
+    attrs.event_mask = 0;  // No events
+    attrs.backing_store = Always;
+
+    black_square = XCreateWindow(d, root,
+        x, y, size, size, 0,
+        CopyFromParent, InputOutput, CopyFromParent,
+        CWOverrideRedirect | CWBackPixel | CWEventMask | CWBackingStore,
+        &attrs);
+
+    // Set window manager hints
+    XWMHints wm_hints;
+    wm_hints.flags = InputHint | StateHint;
+    wm_hints.input = False;  // Never accept input
+    wm_hints.initial_state = NormalState;
+    XSetWMHints(d, black_square, &wm_hints);
+
+    // Set window class and name
+    XClassHint class_hint;
+    class_hint.res_name = "locked_square";
+    class_hint.res_class = "LockedSquare";
+    XSetClassHint(d, black_square, &class_hint);
+
+    // Make it stay on top and sticky
+    Atom net_wm_state = XInternAtom(d, "_NET_WM_STATE", False);
+    Atom states[2];
+    states[0] = XInternAtom(d, "_NET_WM_STATE_ABOVE", False);
+    states[1] = XInternAtom(d, "_NET_WM_STATE_STICKY", False);
+    XChangeProperty(d, black_square, net_wm_state, XA_ATOM, 32,
+                   PropModeReplace, (unsigned char *)states, 2);
+
+    // Completely disable any window management interaction
+    //Atom wm_protocols = XInternAtom(d, "WM_PROTOCOLS", False);
+    Atom wm_delete_window = XInternAtom(d, "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(d, black_square, &wm_delete_window, 1);
+
+    XMapWindow(d, black_square);
+    XFlush(d);
+}
 
 void square_draw(const Arg arg) {
     // Create a dedicated window for the square
@@ -330,6 +386,8 @@ int main(void) {
     root  = RootWindow(d, s);
     sw    = XDisplayWidth(d, s);
     sh    = XDisplayHeight(d, s);
+
+	create_black_square();
 
     XSelectInput(d,  root, SubstructureRedirectMask);
     XDefineCursor(d, root, XCreateFontCursor(d, 68));

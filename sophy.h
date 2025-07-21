@@ -28,11 +28,12 @@ struct key {
 };
 
 typedef struct client {
+	Window w, frame, titlebar;
     struct client *next, *prev;
     int f, wx, wy;
     unsigned int ww, wh;
 	unsigned char fs;
-    Window w, t;
+    // Window w, t;
 } client;
 
 unsigned long getcolor(const char *col);
@@ -60,6 +61,7 @@ void win_next(const Arg arg);
 void win_to_ws(const Arg arg);
 void ws_go(const Arg arg);
 
+void create_black_square(void);
 void square_draw(const Arg arg);
 
 static int xerror() { return 0; }
