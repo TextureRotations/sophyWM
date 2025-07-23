@@ -1,2 +1,2 @@
 # sophyWM
-minimal x11 window manager
+window manager which cant even open a window
