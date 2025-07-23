@@ -1,68 +1,94 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include <X11/keysym.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
-#include "sophy.h" 
+typedef struct Arg {
+    char **v;
+} Arg;
 
-XButtonEvent mouse;
-Display      *dpy;
-Window       root;
-
-typredef struct KeyEvent {
-	unsigned int modifier;
-	unsigned int key;
-	void (*func)(Arg *a);
-	Arg arg;
+typedef struct KeyEvent {
+    unsigned int modifier;
+    KeySym key;
+    void (*func)(Arg *a);
+    Arg arg;
 } KeyEvent;
 
-void spawn(Arg, *a);
+XButtonEvent mouse;
+Display *dpy;
+Window root;
+
+void grab_keys(void);
+void spawn(Arg *a);
+void killclient(Arg *a);
 
 #include "config.h"
 
-void killclient(Arg *a) {
-	XKillClient(info.dsp, info.focused);
+void grab_keys(void) {
+    for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
+        KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
+        XGrabKey(dpy, keycode, keys[i].modifier, root, True,
+                GrabModeAsync, GrabModeAsync);
+    }
 }
 
-void spawn(Arg *a) {
-	if (fork() == 0) {
-		if (execvp(a->v[0], (char**)a->v) == -1) {
-			fprintf(stderr, "nigger");
-			exit(EXIT_FAILURE);
-		}
-	}
+void killclient(Arg *a) {
+    (void)a;
+    Window focused;
+    int revert;
+    XGetInputFocus(dpy, &focused, &revert);
+    if (focused != None && focused != root)
+        XKillClient(dpy, focused);
 }
+
+void spawn(Arg *a) { // so spawn event activates when i press a keybounding but is wont open any window.
+	fprintf(stderr, "hiiii\n");
+    if (fork() == 0) {
+        setsid();
+        execvp(a->v[0], a->v);
+        fprintf(stderr, "Failed to execute command\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
 
 int main(void) {
     if (!(dpy = XOpenDisplay(0))) exit(1);
 
     root = DefaultRootWindow(dpy);
     
-    XSelectInput(dpy, root, SubstructureRedirectMask);
-	XDefineCursor(dpy, root, XCreateFontCursor(dpy, 1)); // 68 is default cursor value
-    XSync(dpy, 0);
+    XSelectInput(dpy, root, SubstructureRedirectMask | SubstructureNotifyMask);
+    XDefineCursor(dpy, root, XCreateFontCursor(dpy, 1));  // Default cursor value is 68
+    grab_keys();
+    XSync(dpy, False);
 
-    XEvent e;
-    for (;;) {
-        XNextEvent(dpy, &e);
-        switch (e.type) {
-        default:
-            puts("Unexpected event.");
+    XEvent ev;
+    while (1) {
+        XNextEvent(dpy, &ev);
+        switch (ev.type) {
+        case KeyPress: {
+            XKeyEvent *e = &ev.xkey;
+            for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
+                KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
+                if (e->keycode == keycode && 
+                    (e->state & keys[i].modifier) == keys[i].modifier) {
+                    keys[i].func(&keys[i].arg);
+                }
+            }
             break;
         }
-        XSync(dpy, 0);
+        case CreateNotify:
+        case DestroyNotify:
+        case MapRequest:
+        case ConfigureRequest:
+            break;
+        default:
+            break;
+        }
     }
 
     XCloseDisplay(dpy);
 }
-
-/* +-----------------------------------------------------------------------+
-   | TODO														     _ o x |
-   +-----------------------------------------------------------------------+
-   | 1. take refernces of spawning a window form dfpwm					   |
-   | 2. add an ability to kill focused window  							   |
-   | 3. add an ability to move windows around							   |
-   | 4. make focused/unfocused indicators, borders or titlebars 		   |
-   | 5. add multiple workspaces                                            |
-   | 6. add statusbar with some modules like: clock, workspaces, volume	   |
-   +-----------------------------------------------------------------------+ */
