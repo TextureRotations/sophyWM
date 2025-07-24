@@ -9,7 +9,7 @@ all: sophy
 config.h:
 	cp config.def.h config.h
 
-sophy: sophy.c sophy.h config.h Makefile
+sophy: sophy.c config.h Makefile
 	$(CC) -O3 $(CFLAGS) -o $@ $< -lX11 $(LDFLAGS)
 
 install: all

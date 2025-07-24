@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200112L
+
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -5,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/types.h>
 
 typedef struct Arg {
     char **v;
@@ -23,7 +26,7 @@ Window root;
 
 void grab_keys(void);
 void spawn(Arg *a);
-void killclient(Arg *a);
+void kill(Arg *a);
 
 #include "config.h"
 
@@ -35,7 +38,7 @@ void grab_keys(void) {
     }
 }
 
-void killclient(Arg *a) {
+void kill(Arg *a) {
     (void)a;
     Window focused;
     int revert;
@@ -44,16 +47,27 @@ void killclient(Arg *a) {
         XKillClient(dpy, focused);
 }
 
-void spawn(Arg *a) { // so spawn event activates when i press a keybounding but is wont open any window.
-	fprintf(stderr, "hiiii\n");
-    if (fork() == 0) {
-        setsid();
-        execvp(a->v[0], a->v);
-        fprintf(stderr, "Failed to execute command\n");
-        exit(EXIT_FAILURE);
+void spawn(Arg *a) {
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork failed");
+        return;
     }
-}
 
+    if (pid == 0) { // Child process
+        // Set X11 environment (Arch-specific defaults)
+        if (!getenv("DISPLAY")) setenv("DISPLAY", ":0", 1);
+        if (!getenv("XAUTHORITY")) {
+            setenv("XAUTHORITY", "/home/oy/.Xauthority", 1); // ← Change this!
+        }
+
+        execvp(a->v[0], a->v);
+        perror("execvp failed");
+        _exit(1);
+    }
+
+    fprintf(stderr, "Spawned PID %d: %s\n", pid, a->v[0]);
+}
 
 int main(void) {
     if (!(dpy = XOpenDisplay(0))) exit(1);

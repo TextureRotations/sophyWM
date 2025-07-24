@@ -6,7 +6,7 @@
 static char *terminal[] = { "xterm", NULL };
 
 static KeyEvent keys[] = {
-    { MOD, XK_c,      killclient, { .v = NULL } },
+    { MOD, XK_c,      kill, { .v = NULL } },
     { MOD, XK_Return, spawn,      { .v = terminal } }
 };
 
