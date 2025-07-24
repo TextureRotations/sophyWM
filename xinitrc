@@ -5,7 +5,7 @@
 xeyes &
 
 # 2. autostart config.
-/home/oy/code/sophy/sophyWM/autostart.sh &
+/home/oy/code/sophyWM/autostart.sh &
 
 # exec xrdb -merge /home/oy/.Xresources
 

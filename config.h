@@ -3,11 +3,11 @@
 
 #define MOD Mod4Mask
 
-static char *terminal[] = { "xterm", NULL };
+static char *terminal[] = { "st", 0};
 
-static KeyEvent keys[] = {
-    { MOD, XK_c,      kill, { .v = NULL } },
-    { MOD, XK_Return, spawn,      { .v = terminal } }
+static struct KeyEvent keys[] = {
+    { MOD, XK_c,      kill,       {.v = 0}},
+    { MOD, XK_Return, spawn,      {.v = terminal}}
 };
 
 #endif

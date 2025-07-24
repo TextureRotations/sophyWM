@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
+// #define _POSIX_C_SOURCE 200112L нахуй посикс
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -48,25 +48,12 @@ void kill(Arg *a) {
 }
 
 void spawn(Arg *a) {
-    pid_t pid = fork();
-    if (pid == -1) {
-        perror("fork failed");
-        return;
-    }
+	fprintf(stderr, "haii<33\n");
 
-    if (pid == 0) { // Child process
-        // Set X11 environment (Arch-specific defaults)
-        if (!getenv("DISPLAY")) setenv("DISPLAY", ":0", 1);
-        if (!getenv("XAUTHORITY")) {
-            setenv("XAUTHORITY", "/home/oy/.Xauthority", 1); // ← Change this!
-        }
+	setsid();
+	execlp("st", "st", NULL);
 
-        execvp(a->v[0], a->v);
-        perror("execvp failed");
-        _exit(1);
-    }
-
-    fprintf(stderr, "Spawned PID %d: %s\n", pid, a->v[0]);
+    fprintf(stderr, "waaa, it works");
 }
 
 int main(void) {
@@ -75,7 +62,7 @@ int main(void) {
     root = DefaultRootWindow(dpy);
     
     XSelectInput(dpy, root, SubstructureRedirectMask | SubstructureNotifyMask);
-    XDefineCursor(dpy, root, XCreateFontCursor(dpy, 1));  // Default cursor value is 68
+    XDefineCursor(dpy, root, XCreateFontCursor(dpy, 68));  // Default cursor value is 68
     grab_keys();
     XSync(dpy, False);
 
