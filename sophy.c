@@ -1,5 +1,3 @@
-// #define _POSIX_C_SOURCE 200112L нахуй посикс
-
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -48,12 +46,8 @@ void kill(Arg *a) {
 }
 
 void spawn(Arg *a) {
-	fprintf(stderr, "haii<33\n");
-
 	setsid();
-	execlp("st", "st", NULL);
-
-    fprintf(stderr, "waaa, it works");
+	execvp((char*)a->v[0], (char**)a->v);
 }
 
 int main(void) {
