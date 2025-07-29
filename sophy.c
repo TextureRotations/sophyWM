@@ -1,11 +1,17 @@
+/* TODO: 1. focus
+ *		 2. kill
+ *		 3. move
+ */
+
+#include <X11/keysym.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
-#include <X11/keysym.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <X11/Xutil.h>
 
 typedef struct Arg {
     char **v;
@@ -19,14 +25,24 @@ typedef struct KeyEvent {
 } KeyEvent;
 
 XButtonEvent mouse;
-Display *dpy;
-Window root;
+Display      *dpy;
+Window       root;
 
+void focus(Arg *a);
+void move(Arg *a);
 void grab_keys(void);
-void spawn(Arg *a);
 void kill(Arg *a);
+void spawn(Arg *a);
 
 #include "config.h"
+
+void focus(Arg *a) {
+
+}
+
+void move(Arg *a) {
+	
+}
 
 void grab_keys(void) {
     for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
@@ -37,17 +53,15 @@ void grab_keys(void) {
 }
 
 void kill(Arg *a) {
-    (void)a;
-    Window focused;
-    int revert;
-    XGetInputFocus(dpy, &focused, &revert);
-    if (focused != None && focused != root)
-        XKillClient(dpy, focused);
+	
 }
 
 void spawn(Arg *a) {
-	setsid();
+	int pid = fork();
+	fprintf(stderr, "%d\n", pid);
+		
 	execvp((char*)a->v[0], (char**)a->v);
+	fprintf(stderr, "event called\n");
 }
 
 int main(void) {
@@ -73,17 +87,13 @@ int main(void) {
                     keys[i].func(&keys[i].arg);
                 }
             }
-            break;
-        }
-        case CreateNotify:
-        case DestroyNotify:
-        case MapRequest:
-        case ConfigureRequest:
-            break;
-        default:
-            break;
+			break;
+		}
+		/*case ConfigureRequest:
+			break;
+		default:
+			break; */
         }
     }
-
     XCloseDisplay(dpy);
 }
