@@ -1,8 +1,3 @@
-/* TODO: 1. focus
- *		 2. kill
- *		 3. move
- */
-
 #include <X11/keysym.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -28,7 +23,7 @@ XButtonEvent mouse;
 Display      *dpy;
 Window       root;
 
-void focus(Arg *a);
+void focus(void);
 void move(Arg *a);
 void grab_keys(void);
 void kill(Arg *a);
@@ -36,7 +31,7 @@ void spawn(Arg *a);
 
 #include "config.h"
 
-void focus(Arg *a) {
+void focus(void) {
 
 }
 
@@ -53,15 +48,12 @@ void grab_keys(void) {
 }
 
 void kill(Arg *a) {
-	
+	fprintf(stderr, "kill executed\n");
 }
 
 void spawn(Arg *a) {
-	int pid = fork();
-	fprintf(stderr, "%d\n", pid);
-		
-	execvp((char*)a->v[0], (char**)a->v);
-	fprintf(stderr, "event called\n");
+	setsid();
+	execvp(a->v[0], a->v);
 }
 
 int main(void) {

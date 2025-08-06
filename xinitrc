@@ -2,7 +2,7 @@
 # sleep 2 && xterm &
 
 # 2. autostart config.
-/home/oy/code/sophyWM/autostart.sh &
+/home/oy/code/sophy/sophywm/autostart.sh &
 
 # 3. Start our window manager.
 exec ./sophy
