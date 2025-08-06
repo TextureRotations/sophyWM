@@ -47,12 +47,24 @@ void spawn(Arg *a);
 #include "config.h"
 
 void focus(client *c) {
-	cur = c;
-	XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
+	if (!c) return;
+      cur = c;
+  
+      XRaiseWindow(dpy, cur->w);
+      XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
 }
 
 void move(Arg *a) {
-	XMoveWindow(dpy, cur->w, 20, 20);	
+      if (!cur) return;
+  
+      Screen *scr = DefaultScreenOfDisplay(dpy);
+      int screen_width = scr->width;
+      int screen_height = scr->height;
+  
+      int new_x = (screen_width - cur->ww) / 2;
+      int new_y = (screen_height - cur->wh) / 2;
+  
+      XMoveWindow(dpy, cur->w, new_x, new_y);
 }
 
 void grab_keys(void) {

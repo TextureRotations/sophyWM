@@ -6,5 +6,3 @@
 
 # 3. Start our window manager.
 exec ./sophy
-
-
