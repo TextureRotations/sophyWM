@@ -1,17 +1,8 @@
-//TODO:
-//FOCUSED/UNFOCUSED
-//KILL
-//MOVE
-
 #include <X11/keysym.h>
-#include <X11/X.h>
 #include <X11/Xlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <X11/Xutil.h>
 
 typedef struct Arg {
     char **v;
@@ -29,9 +20,6 @@ typedef struct client {
 	int wx, wy;
 	Window w;
 } client;
-
-static int 			wx, wy;
-static unsigned int ww, wh;
 
 static client 		*cur;
 XButtonEvent 		mouse;
@@ -55,20 +43,20 @@ void focus(client *c) {
 }
 
 void move(Arg *a) {
-      if (!cur) return;
+    if (!cur) return;
   
-      Screen *scr = DefaultScreenOfDisplay(dpy);
-      int screen_width = scr->width;
-      int screen_height = scr->height;
+    Screen *scr = DefaultScreenOfDisplay(dpy);
+    int sw = scr->width;
+    int sh = scr->height;
   
-      int new_x = (screen_width - cur->ww) / 2;
-      int new_y = (screen_height - cur->wh) / 2;
+    int x = (sw - cur->ww) / 2;
+    int y = (sh - cur->wh) / 2;
   
-      XMoveWindow(dpy, cur->w, new_x, new_y);
+	XMoveWindow(dpy, cur->w, x, y);
 }
 
 void grab_keys(void) {
-    for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
+	for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
         KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
         XGrabKey(dpy, keycode, keys[i].modifier, root, True,
                 GrabModeAsync, GrabModeAsync);
@@ -85,21 +73,17 @@ void spawn(Arg *a) {
             close(ConnectionNumber(dpy));
 
         setsid();
-
-        char *display_env = getenv("DISPLAY");
-        if (!display_env) {
-            fprintf(stderr, "DISPLAY not set\n");
-            exit(1);
-        }
-
         execvp(a->v[0], a->v);
-        perror("execvp failed");
+        fprintf(stderr, "execvp failedi\n");
         exit(1);
     }
 }
 
 int main(void) {
-    if (!(dpy = XOpenDisplay(NULL))) exit(1);
+    if (!(dpy = XOpenDisplay(NULL))) {
+        fprintf(stderr, "Failed to open display\n");
+        exit(1);
+    }
 
     root = DefaultRootWindow(dpy);
 
@@ -123,8 +107,33 @@ int main(void) {
             }
             break;
         }
-        case MapRequest:
-            XMapWindow(dpy, ev.xmaprequest.window);
+
+        case MapRequest: {
+            Window w = ev.xmaprequest.window;
+
+            XWindowAttributes wa;
+            if (!XGetWindowAttributes(dpy, w, &wa) || wa.override_redirect)
+                break;
+
+            XMapWindow(dpy, w);
+
+            client *c = malloc(sizeof(client));
+            if (!c) {
+                fprintf(stderr, "Failed to allocate memory for client\n");
+                break;
+            }
+
+            c->w = w;
+            c->wx = wa.x;
+            c->wy = wa.y;
+            c->ww = wa.width;
+            c->wh = wa.height;
+
+            focus(c); // set the current client
+            break;
+        }
+
+        default:
             break;
         }
     }
