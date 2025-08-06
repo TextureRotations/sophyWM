@@ -1,3 +1,8 @@
+//TODO:
+//FOCUSED/UNFOCUSED
+//KILL
+//MOVE
+
 #include <X11/keysym.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -22,7 +27,7 @@ typedef struct KeyEvent {
 
 XButtonEvent mouse;
 Display      *dpy;
-Window       root;
+Window       w, root;
 
 void focus(void);
 void move(Arg *a);
@@ -49,17 +54,24 @@ void grab_keys(void) {
 }
 
 void kill(Arg *a) {
-	fprintf(stderr, "kill executed\n");
+    //Window w;
+    int revert;
+
+    XGetInputFocus(dpy, &w, &revert);
+
+    if (w == None || w == root)
+        return;
+
+    XKillClient(dpy, w);
 }
 
 void spawn(Arg *a) {
     if (fork() == 0) {
         if (dpy)
-            close(ConnectionNumber(dpy)); // close X connection in child
+            close(ConnectionNumber(dpy));
 
         setsid();
 
-        // Make sure DISPLAY is still available in child
         char *display_env = getenv("DISPLAY");
         if (!display_env) {
             fprintf(stderr, "DISPLAY not set\n");
