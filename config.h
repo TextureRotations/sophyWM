@@ -3,7 +3,7 @@
 
 #define MOD Mod4Mask
 
-static char* term[]  = { "xterm",         0};
+static char* term[]  = { "urxvt",         0};
 static char* clock[] = { "xclock",      0};
 
 static struct KeyEvent keys[] = {

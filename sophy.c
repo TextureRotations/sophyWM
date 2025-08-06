@@ -10,6 +10,7 @@
 
 typedef struct Arg {
     char **v;
+ 	Window w;
 } Arg;
 
 typedef struct KeyEvent {
@@ -52,17 +53,32 @@ void kill(Arg *a) {
 }
 
 void spawn(Arg *a) {
-	setsid();
-	execvp(a->v[0], a->v);
+    if (fork() == 0) {
+        if (dpy)
+            close(ConnectionNumber(dpy)); // close X connection in child
+
+        setsid();
+
+        // Make sure DISPLAY is still available in child
+        char *display_env = getenv("DISPLAY");
+        if (!display_env) {
+            fprintf(stderr, "DISPLAY not set\n");
+            exit(1);
+        }
+
+        execvp(a->v[0], a->v);
+        perror("execvp failed");
+        exit(1);
+    }
 }
 
 int main(void) {
-    if (!(dpy = XOpenDisplay(0))) exit(1);
+    if (!(dpy = XOpenDisplay(NULL))) exit(1);
 
     root = DefaultRootWindow(dpy);
-    
-    XSelectInput(dpy, root, SubstructureRedirectMask | SubstructureNotifyMask);
-    XDefineCursor(dpy, root, XCreateFontCursor(dpy, 68));  // Default cursor value is 68
+
+    XSelectInput(dpy, root, SubstructureRedirectMask | SubstructureNotifyMask | StructureNotifyMask);
+    XDefineCursor(dpy, root, XCreateFontCursor(dpy, 68));
     grab_keys();
     XSync(dpy, False);
 
@@ -74,18 +90,19 @@ int main(void) {
             XKeyEvent *e = &ev.xkey;
             for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
                 KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
-                if (e->keycode == keycode && 
+                if (e->keycode == keycode &&
                     (e->state & keys[i].modifier) == keys[i].modifier) {
                     keys[i].func(&keys[i].arg);
                 }
             }
-			break;
-		}
-		/*case ConfigureRequest:
-			break;
-		default:
-			break; */
+            break;
+        }
+        case MapRequest:
+            XMapWindow(dpy, ev.xmaprequest.window);
+            break;
         }
     }
+
     XCloseDisplay(dpy);
+    return 0;
 }
