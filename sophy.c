@@ -15,7 +15,6 @@
 
 typedef struct Arg {
     char **v;
- 	Window w;
 } Arg;
 
 typedef struct KeyEvent {
@@ -25,11 +24,21 @@ typedef struct KeyEvent {
     Arg arg;
 } KeyEvent;
 
-XButtonEvent mouse;
-Display      *dpy;
-Window       w, root;
+typedef struct client {
+	unsigned int ww, wh;
+	int wx, wy;
+	Window w;
+} client;
 
-void focus(void);
+static int 			wx, wy;
+static unsigned int ww, wh;
+
+static client 		*cur;
+XButtonEvent 		mouse;
+Display      		*dpy;
+Window       		root;
+
+void focus(client *c);
 void move(Arg *a);
 void grab_keys(void);
 void kill(Arg *a);
@@ -37,12 +46,13 @@ void spawn(Arg *a);
 
 #include "config.h"
 
-void focus(void) {
-
+void focus(client *c) {
+	cur = c;
+	XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
 }
 
 void move(Arg *a) {
-	
+	XMoveWindow(dpy, cur->w, 20, 20);	
 }
 
 void grab_keys(void) {
@@ -54,15 +64,7 @@ void grab_keys(void) {
 }
 
 void kill(Arg *a) {
-    //Window w;
-    int revert;
 
-    XGetInputFocus(dpy, &w, &revert);
-
-    if (w == None || w == root)
-        return;
-
-    XKillClient(dpy, w);
 }
 
 void spawn(Arg *a) {
