@@ -36,10 +36,17 @@ void spawn(Arg *a);
 
 void focus(client *c) {
 	if (!c) return;
-      cur = c;
+    cur = c;
   
-      XRaiseWindow(dpy, cur->w);
-      XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
+    XRaiseWindow(dpy, cur->w);
+    XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
+	
+	//print window name in console
+	char *window_name = NULL;
+	if (XFetchName(dpy, cur->w, &window_name) && window_name) {
+		fprintf(stderr, "Focused to: %s\n", window_name);
+		XFree(window_name);
+	}
 }
 
 void move(Arg *a) {
@@ -87,7 +94,12 @@ int main(void) {
 
     root = DefaultRootWindow(dpy);
 
-    XSelectInput(dpy, root, SubstructureRedirectMask | SubstructureNotifyMask | StructureNotifyMask);
+    XSelectInput(dpy, root,
+        SubstructureRedirectMask |
+        SubstructureNotifyMask |
+        StructureNotifyMask |
+        EnterWindowMask);
+
     XDefineCursor(dpy, root, XCreateFontCursor(dpy, 68));
     grab_keys();
     XSync(dpy, False);
@@ -96,6 +108,7 @@ int main(void) {
     while (1) {
         XNextEvent(dpy, &ev);
         switch (ev.type) {
+
         case KeyPress: {
             XKeyEvent *e = &ev.xkey;
             for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
@@ -117,6 +130,8 @@ int main(void) {
 
             XMapWindow(dpy, w);
 
+            XSelectInput(dpy, w, EnterWindowMask | FocusChangeMask);
+
             client *c = malloc(sizeof(client));
             if (!c) {
                 fprintf(stderr, "Failed to allocate memory for client\n");
@@ -129,7 +144,28 @@ int main(void) {
             c->ww = wa.width;
             c->wh = wa.height;
 
-            focus(c); // set the current client
+            focus(c); // automaticaly focus nwely opened window
+            break;
+        }
+
+        case EnterNotify: {
+            Window w = ev.xcrossing.window;
+
+            if (cur && cur->w == w) break;
+
+            XWindowAttributes wa;
+            if (!XGetWindowAttributes(dpy, w, &wa)) break;
+
+            client *c = malloc(sizeof(client));
+            if (!c) break;
+
+            c->w = w;
+            c->wx = wa.x;
+            c->wy = wa.y;
+            c->ww = wa.width;
+            c->wh = wa.height;
+
+            focus(c);  // focus the window under the mouse cursor
             break;
         }
 

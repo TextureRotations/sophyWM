@@ -1,6 +1,6 @@
 #!/bin/bash
 
-feh --bg-fill /home/oy/wallpaper/bach.jpg
+feh --bg-fill /home/oy/wallpaper/window.jpg
 xrdb -merge /home/oy/.Xresources
 
-xclock &
+xclock -digital &
