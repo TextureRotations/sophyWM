@@ -57,7 +57,7 @@ void move(Arg *a) {
     int sh = scr->height;
   
     int x = (sw - cur->ww) / 2;
-    int y = (sh - cur->wh) / 2;
+	int y = (sh - cur->wh) / 2;
   
 	XMoveWindow(dpy, cur->w, x, y);
 }
@@ -71,7 +71,7 @@ void grab_keys(void) {
 }
 
 void kill(Arg *a) {
-
+	if (cur) XKillClient(dpy, cur->w);
 }
 
 void spawn(Arg *a) {
@@ -144,7 +144,7 @@ int main(void) {
             c->ww = wa.width;
             c->wh = wa.height;
 
-            focus(c); // automaticaly focus nwely opened window
+            focus(c); // automaticaly focus newly opened window
             break;
         }
 
@@ -168,12 +168,12 @@ int main(void) {
             focus(c);  // focus the window under the mouse cursor
             break;
         }
-
+		
         default:
             break;
         }
     }
 
-    XCloseDisplay(dpy);
+    XCloseDisplay(dpy); // 2 possibly unnecessary lines
     return 0;
 }
