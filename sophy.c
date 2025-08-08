@@ -27,10 +27,11 @@ Display      		*dpy;
 Window       		root;
 
 void focus(client *c);
-void move(Arg *a);
+void move_to_center(Arg *a);
 void grab_keys(void);
 void kill(Arg *a);
 void spawn(Arg *a);
+void resize(Arg *a);
 
 #include "config.h"
 
@@ -49,7 +50,20 @@ void focus(client *c) {
 	}
 }
 
-void move(Arg *a) {
+void resize(Arg *a) {
+	if (!cur) return;
+	
+	Screen *scr = DefaultScreenOfDisplay(dpy);
+	int ww = scr->width;
+	int wh = scr->height;
+
+	int x = ww;
+	int y = wh;
+
+	XResizeWindow(dpy, cur->w, x, y); 
+}
+
+void move_to_center(Arg *a) {
     if (!cur) return;
   
     Screen *scr = DefaultScreenOfDisplay(dpy);
