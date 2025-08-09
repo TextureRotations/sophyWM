@@ -1,5 +1,5 @@
-#include <X11/keysym.h>
 #include <X11/Xlib.h>
+#include <X11/keysym.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -16,178 +16,205 @@ typedef struct KeyEvent {
 } KeyEvent;
 
 typedef struct client {
-	unsigned int ww, wh;
-	int wx, wy;
-	Window w;
+    unsigned int ww, wh;
+    int wx, wy;
+    Window w;
 } client;
 
-static client 		*cur;
-XButtonEvent 		mouse;
-Display      		*dpy;
-Window       		root;
-
+static client *cur = NULL;
+static Display *dpy;
+static Window root;
 void focus(client *c);
-void move_to_center(Arg *a);
 void grab_keys(void);
 void kill(Arg *a);
 void spawn(Arg *a);
-void resize(Arg *a);
 
 #include "config.h"
 
 void focus(client *c) {
-	if (!c) return;
+    if (!c) return;
     cur = c;
-  
     XRaiseWindow(dpy, cur->w);
     XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
-	
-	//print window name in console
-	char *window_name = NULL;
-	if (XFetchName(dpy, cur->w, &window_name) && window_name) {
-		fprintf(stderr, "Focused to: %s\n", window_name);
-		XFree(window_name);
-	}
-}
 
-void resize(Arg *a) {
-	if (!cur) return;
-	
-	Screen *scr = DefaultScreenOfDisplay(dpy);
-	int ww = scr->width;
-	int wh = scr->height;
-
-	int x = ww;
-	int y = wh;
-
-	XResizeWindow(dpy, cur->w, x, y); 
-}
-
-void move_to_center(Arg *a) {
-    if (!cur) return;
-  
-    Screen *scr = DefaultScreenOfDisplay(dpy);
-    int sw = scr->width;
-    int sh = scr->height;
-  
-    int x = (sw - cur->ww) / 2;
-	int y = (sh - cur->wh) / 2;
-  
-	XMoveWindow(dpy, cur->w, x, y);
-}
-
-void grab_keys(void) {
-	for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
-        KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
-        XGrabKey(dpy, keycode, keys[i].modifier, root, True,
-                GrabModeAsync, GrabModeAsync);
+    char *window_name = NULL;
+    if (XFetchName(dpy, cur->w, &window_name) && window_name) {
+        fprintf(stderr, "Focused: %s\n", window_name);
+        XFree(window_name);
     }
 }
 
 void kill(Arg *a) {
-	if (cur) XKillClient(dpy, cur->w);
+    if (cur) XKillClient(dpy, cur->w);
 }
 
 void spawn(Arg *a) {
     if (fork() == 0) {
         if (dpy)
             close(ConnectionNumber(dpy));
-
         setsid();
         execvp(a->v[0], a->v);
-        fprintf(stderr, "execvp failedi\n");
+        fprintf(stderr, "execvp failed\n");
         exit(1);
+    }
+}
+
+void grab_keys(void) {
+    for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
+        KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
+        XGrabKey(dpy, keycode, keys[i].modifier, root, True,
+                 GrabModeAsync, GrabModeAsync);
     }
 }
 
 int main(void) {
     if (!(dpy = XOpenDisplay(NULL))) {
         fprintf(stderr, "Failed to open display\n");
-        exit(1);
+        return 1;
     }
-
     root = DefaultRootWindow(dpy);
 
+    // Select events on root window
     XSelectInput(dpy, root,
-        SubstructureRedirectMask |
-        SubstructureNotifyMask |
-        StructureNotifyMask |
-        EnterWindowMask);
+                 SubstructureRedirectMask |
+                 SubstructureNotifyMask |
+                 StructureNotifyMask |
+                 EnterWindowMask |
+                 ButtonPressMask |
+                 ButtonReleaseMask |
+                 PointerMotionMask);
 
     XDefineCursor(dpy, root, XCreateFontCursor(dpy, 68));
     grab_keys();
     XSync(dpy, False);
 
     XEvent ev;
+    int moving = 0;
+    int drag_start_x = 0, drag_start_y = 0;
+    int win_start_x = 0, win_start_y = 0;
+
     while (1) {
         XNextEvent(dpy, &ev);
+
         switch (ev.type) {
 
-        case KeyPress: {
-            XKeyEvent *e = &ev.xkey;
-            for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
-                KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
-                if (e->keycode == keycode &&
-                    (e->state & keys[i].modifier) == keys[i].modifier) {
-                    keys[i].func(&keys[i].arg);
+            case KeyPress: {
+                XKeyEvent *e = &ev.xkey;
+                for (unsigned int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
+                    KeyCode keycode = XKeysymToKeycode(dpy, keys[i].key);
+                    if (e->keycode == keycode &&
+                        (e->state & keys[i].modifier) == keys[i].modifier) {
+                        keys[i].func(&keys[i].arg);
+                    }
                 }
-            }
-            break;
-        }
-
-        case MapRequest: {
-            Window w = ev.xmaprequest.window;
-
-            XWindowAttributes wa;
-            if (!XGetWindowAttributes(dpy, w, &wa) || wa.override_redirect)
-                break;
-
-            XMapWindow(dpy, w);
-
-            XSelectInput(dpy, w, EnterWindowMask | FocusChangeMask);
-
-            client *c = malloc(sizeof(client));
-            if (!c) {
-                fprintf(stderr, "Failed to allocate memory for client\n");
                 break;
             }
 
-            c->w = w;
-            c->wx = wa.x;
-            c->wy = wa.y;
-            c->ww = wa.width;
-            c->wh = wa.height;
+            case MapRequest: {
+                Window w = ev.xmaprequest.window;
+                XWindowAttributes wa;
+                if (!XGetWindowAttributes(dpy, w, &wa) || wa.override_redirect)
+                    break;
 
-            focus(c); // automaticaly focus newly opened window
-            break;
-        }
+                XMapWindow(dpy, w);
+                XSelectInput(dpy, w, EnterWindowMask | FocusChangeMask | ButtonPressMask);
 
-        case EnterNotify: {
-            Window w = ev.xcrossing.window;
+                client *c = malloc(sizeof(client));
+                if (!c) {
+                    fprintf(stderr, "malloc failed\n");
+                    break;
+                }
 
-            if (cur && cur->w == w) break;
+                c->w = w;
+                c->wx = wa.x;
+                c->wy = wa.y;
+                c->ww = wa.width;
+                c->wh = wa.height;
 
-            XWindowAttributes wa;
-            if (!XGetWindowAttributes(dpy, w, &wa)) break;
+                focus(c);
+                break;
+            }
 
-            client *c = malloc(sizeof(client));
-            if (!c) break;
+            case EnterNotify: {
+                Window w = ev.xcrossing.window;
+                if (cur && cur->w == w) break;
 
-            c->w = w;
-            c->wx = wa.x;
-            c->wy = wa.y;
-            c->ww = wa.width;
-            c->wh = wa.height;
+                XWindowAttributes wa;
+                if (!XGetWindowAttributes(dpy, w, &wa)) break;
 
-            focus(c);  // focus the window under the mouse cursor
-            break;
-        }
-		
-        default:
-            break;
+                client *c = malloc(sizeof(client));
+                if (!c) break;
+
+                c->w = w;
+                c->wx = wa.x;
+                c->wy = wa.y;
+                c->ww = wa.width;
+                c->wh = wa.height;
+
+                focus(c);
+                break;
+            }
+
+            case ButtonPress: {
+                XButtonEvent *e = &ev.xbutton;
+
+                // Only start moving if focused window, left click + MOD key pressed
+                if (cur && e->window == cur->w &&
+                    (e->state & Mod4Mask) && e->button == Button1) {
+
+                    moving = 1;
+                    drag_start_x = e->x_root;
+                    drag_start_y = e->y_root;
+
+                    // Get current window position
+                    Window dummy;
+                    int wx, wy;
+                    unsigned int bw, depth, w, h;
+                    XGetGeometry(dpy, cur->w, &dummy, &wx, &wy, &w, &h, &bw, &depth);
+
+                    win_start_x = wx;
+                    win_start_y = wy;
+
+                    // Grab the pointer for moving
+                    XGrabPointer(dpy, root, True,
+                                 PointerMotionMask | ButtonReleaseMask,
+                                 GrabModeAsync, GrabModeAsync,
+                                 None, None, CurrentTime);
+                }
+                break;
+            }
+
+            case MotionNotify: {
+                if (!moving) break;
+                XMotionEvent *e = &ev.xmotion;
+
+                int dx = e->x_root - drag_start_x;
+                int dy = e->y_root - drag_start_y;
+
+                int new_x = win_start_x + dx;
+                int new_y = win_start_y + dy;
+
+                XMoveWindow(dpy, cur->w, new_x, new_y);
+                break;
+            }
+
+            case ButtonRelease: {
+                if (!moving) break;
+                XButtonEvent *e = &ev.xbutton;
+
+                if (e->button == Button1) {
+                    moving = 0;
+                    XUngrabPointer(dpy, CurrentTime);
+                }
+                break;
+            }
+
+            default:
+                break;
         }
     }
 
-    XCloseDisplay(dpy); // 2 possibly unnecessary lines
+    XCloseDisplay(dpy);
     return 0;
 }
+

@@ -9,11 +9,10 @@ static char* eyes[]  = { "xeyes",		0};
 
 static struct KeyEvent keys[] = {
     { MOD, XK_c,      kill, 		  {0}},
-	{ MOD, XK_p,      move_to_center, {0}},
+//	{ MOD, XK_p,      move_to_position, {0}},
     { MOD, XK_Return, spawn,  {.v = term}},
 	{ MOD, XK_t,      spawn, {.v = clock}},
 	{ MOD, XK_e,      spawn,  {.v = eyes}},
-	{ MOD, XK_r,      resize,         {0}},
 };
 
 #endif
