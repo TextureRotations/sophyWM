@@ -24,6 +24,7 @@ typedef struct client {
 static client *cur = NULL;
 static Display *dpy;
 static Window root;
+
 void focus(client *c);
 void grab_keys(void);
 void kill(Arg *a);
