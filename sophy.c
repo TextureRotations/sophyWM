@@ -21,22 +21,68 @@ typedef struct client {
     Window w; // window id
 } client;
 
+typedef struct ClientNode {
+    client *c;
+    struct ClientNode *next;
+} ClientNode;
+
 static client *cur = NULL; // current focused client
-static Display *dpy;       // connections handle
+static Display *dpy;       // connection handle
 static Window root;
 
-void focus(client *c); 
+static unsigned long border_color_focused;
+static unsigned long border_color_unfocused;
+static const unsigned int border_width = 2;
+
+ClientNode *clients = NULL;  // linked list of clients
+
+void focus(client *c);
 void grab_keys(void);
 void kill(Arg *a);
 void spawn(Arg *a);
 
 #include "config.h"
 
+unsigned long parse_hex_color(const char *hex) {
+    XColor color, dummy;
+    Colormap cmap = DefaultColormap(dpy, DefaultScreen(dpy));
+    if (!XParseColor(dpy, cmap, hex, &color) || !XAllocColor(dpy, cmap, &color)) {
+        fprintf(stderr, "Failed to parse or allocate color %s\n", hex);
+        return BlackPixel(dpy, DefaultScreen(dpy));
+    }
+    return color.pixel;
+}
+
+void add_client(client *c) {
+    ClientNode *node = malloc(sizeof(ClientNode));
+    if (!node) return;
+    node->c = c;
+    node->next = clients;
+    clients = node;
+}
+
+client *find_client(Window w) {
+    for (ClientNode *node = clients; node; node = node->next) {
+        if (node->c->w == w)
+            return node->c;
+    }
+    return NULL;
+}
+
 void focus(client *c) {
     if (!c) return;
+
+    // Unfocus previous client border
+    if (cur && cur != c) {
+        XSetWindowBorder(dpy, cur->w, border_color_unfocused);
+    }
+
     cur = c;
-    XRaiseWindow(dpy, cur->w);
-    XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime); 
+
+    // Focused client border color
+    XSetWindowBorder(dpy, cur->w, border_color_focused);
+
+    XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
 
     char *window_name = NULL;
     if (XFetchName(dpy, cur->w, &window_name) && window_name) {
@@ -78,6 +124,9 @@ int main(void) {
     }
     root = DefaultRootWindow(dpy);
 
+	border_color_focused = parse_hex_color(BORDER_COLOR_FOCUSED);
+	border_color_unfocused = parse_hex_color(BORDER_COLOR_UNFOCUSED);
+
     XSelectInput(dpy, root,
                  SubstructureRedirectMask |
                  SubstructureNotifyMask |
@@ -91,13 +140,14 @@ int main(void) {
     grab_keys();
     XSync(dpy, False);
 
-    XEvent ev;
     int moving = 0, resizing = 0;
     int drag_start_x = 0, drag_start_y = 0;
     int win_start_x = 0, win_start_y = 0;
     unsigned int win_start_w = 0, win_start_h = 0;
     client *moving_client = NULL;
     client *resizing_client = NULL;
+
+    XEvent ev;
 
     while (1) {
         XNextEvent(dpy, &ev);
@@ -137,6 +187,13 @@ int main(void) {
                 c->ww = wa.width;
                 c->wh = wa.height;
 
+                // Set border width and initial color
+                XSetWindowBorderWidth(dpy, w, border_width);
+                XSetWindowBorder(dpy, w, border_color_unfocused);
+
+                add_client(c);
+
+                // Focus (no raise)
                 focus(c);
                 break;
             }
@@ -147,17 +204,8 @@ int main(void) {
                 Window w = ev.xcrossing.window;
                 if (cur && cur->w == w) break;
 
-                XWindowAttributes wa;
-                if (!XGetWindowAttributes(dpy, w, &wa)) break;
-
-                client *c = malloc(sizeof(client));
+                client *c = find_client(w);
                 if (!c) break;
-
-                c->w = w;
-                c->wx = wa.x;
-                c->wy = wa.y;
-                c->ww = wa.width;
-                c->wh = wa.height;
 
                 focus(c);
                 break;
@@ -166,7 +214,13 @@ int main(void) {
             case ButtonPress: {
                 XButtonEvent *e = &ev.xbutton;
 
-                // Moving
+                client *clicked_client = find_client(e->window);
+                if (clicked_client) {
+                    // Raise and focus on click
+                    XRaiseWindow(dpy, clicked_client->w);
+                    focus(clicked_client);
+                }
+
                 if (cur && e->window == cur->w &&
                     (e->state & Mod4Mask) && e->button == Button1) {
 
@@ -188,7 +242,6 @@ int main(void) {
                                  None, None, CurrentTime);
                 }
 
-                // Resizing
                 if (cur && e->window == cur->w &&
                     (e->state & Mod4Mask) && e->button == Button3) {
 
@@ -228,7 +281,7 @@ int main(void) {
                     int new_w = (int)win_start_w + dx;
                     int new_h = (int)win_start_h + dy;
 
-                    if (new_w < 50) new_w = 50; // Minimum size
+                    if (new_w < 50) new_w = 50;
                     if (new_h < 50) new_h = 50;
 
                     XResizeWindow(dpy, resizing_client->w,
