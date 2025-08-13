@@ -12,6 +12,4 @@ fi
         "$XEPHYR" \
         :100 \
         -ac \
-		-screen 1216x816 \
-        # -screen 820x460 \
-        -host-cursor
+		-screen 1216x816 -host-cursor
