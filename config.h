@@ -1,7 +1,7 @@
 #define MOD Mod4Mask
 
-char *terminal[] = { "urxvt", NULL };
+char *terminal[] = {"xterm", 0};
 
 struct KeyEvent keys[] = {
-	{ MOD, XK_Return, spawn, {.v = terminal} },
+	{MOD, XK_Return, spawn, {.v = terminal}},
 };

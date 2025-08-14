@@ -24,15 +24,18 @@ void keypress(XEvent *event);
 #include "config.h"
 
 void spawn(Arg *a) {
-    fprintf(stderr, "haiii :P\n");
+    if (fork() == 0) {
+		setsid();
+		execvp(a->v[0], a->v);
+	}
 }
 
 void keypress(XEvent *e) {
-    KeySym keysym = XkbKeycodeToKeysym(dpy, e->xkey.keycode, 0, 0);
-    for (unsigned int i = 0; i < sizeof(keys)/sizeof(*keys); ++i)
+    KeySym keysym = XkbKeycodeToKeysym(dpy, e->xkey.keycode, 0, 0); // converts numeric keycode into a keysym
+    for (unsigned int i = 0; i < sizeof(keys)/sizeof(*keys); ++i) // calculates how many keybindings exists
         if (keys[i].key == keysym &&
         	keys[i].modifier == e->xkey.state)
-            keys[i].func(&keys[i].arg);
+            keys[i].func(&keys[i].arg); // if pressed keys are  matching any existing binding it calls associated with that binding function
 }
 
 static void (*eventhandler[])(XEvent *event) = {
@@ -40,7 +43,7 @@ static void (*eventhandler[])(XEvent *event) = {
 };
 
 int main(void) {
-    if (!(dpy = XOpenDisplay(NULL))) {
+    if (!(dpy = XOpenDisplay(0))) {
         fprintf(stderr, "error opening display\n");
         return 1;
     }
