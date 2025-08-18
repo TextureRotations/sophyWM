@@ -9,9 +9,9 @@ typedef struct client {
 	Window w;
 } client;
 
-static client *cur;
+static client  *cur;
 static Display *dpy;
-static Window root;
+static Window  root;
 
 typedef struct Arg {
     char **v;
@@ -26,7 +26,7 @@ typedef struct KeyEvent {
 
 void spawn(Arg *a);
 void kill(Arg *a);
-// void focus(client *c);
+void focus(client *c);
 void keypress(XEvent *e);
 void buttonpress(XEvent *e);
 
@@ -43,22 +43,31 @@ void spawn(Arg *a) {
 void kill(Arg *a) {
 	if (!cur) return;
 	if (cur->w == root) return;
-
+	
 	XKillClient(dpy, cur->w);	
 }
 
-/* void focus(client *c) {
+void focus(client *c) {
     if (!c) return;
     cur = c;
 
     XSetInputFocus(dpy, cur->w, RevertToParent, CurrentTime);
-} */
+
+	char *window_name = 0;
+	if (XFetchName(dpy, cur->w, &window_name) && window_name) {
+		fprintf(stderr, "Focused to: %s\n", window_name);
+		XFree(window_name);
+	}
+}
 
 void keypress(XEvent *e) {
     KeySym keysym = XkbKeycodeToKeysym(dpy, e->xkey.keycode, 0, 0); // converts numeric keycode into a keysym
+	
+	unsigned int cleanmask = e->xkey.state & ~(LockMask | Mod2Mask);
+
     for (unsigned int i = 0; i < sizeof(keys)/sizeof(*keys); ++i) // calculates how many keybindings exists
-        if (keys[i].key == keysym &&
-        	keys[i].modifier == e->xkey.state)
+        if (keys[i].key == keysym && 
+			keys[i].modifier == cleanmask)
             keys[i].func(&keys[i].arg); // if pressed keys are  matching any existing binding it calls associated with that binding function
 }
 
@@ -68,12 +77,14 @@ void buttonpress(XEvent *e) {
 	Window w = e->xbutton.subwindow;
     if (w == None) return;
 
+	client c = { .w = w };
+	focus(&c);
     XRaiseWindow(dpy, w);
-    XSetInputFocus(dpy, w, RevertToParent, CurrentTime);
+    // XSetInputFocus(dpy, w, RevertToParent, CurrentTime);
 }
 
 static void (*eventhandler[])(XEvent *e) = {
-    [KeyPress] = keypress,
+    [KeyPress] 	  = keypress,
 	[ButtonPress] = buttonpress,
 };
 
@@ -89,7 +100,7 @@ int main(void) {
 				 ButtonPressMask |
 				 KeyPressMask);
 
-	XDefineCursor(dpy, root, XCreateFontCursor(dpy, 24)); // 24 - circle | 126 - star 
+	XDefineCursor(dpy, root, XCreateFontCursor(dpy, 2)); // 24 - circle | 126 - star 
 
     XEvent event;
     for (;;) {
