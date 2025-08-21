@@ -6,17 +6,17 @@ CC     ?= gcc
 
 all: sophy
 
-config.h:
-	cp config.def.h config.h
+# config.h:
+# 	cp config.def.h config.h
 
-sophy: sophy.c Makefile
+sophy: sophy.c config.h Makefile
 	$(CC) -O3 $(CFLAGS) -o $@ $< -lX11 $(LDFLAGS)
 
-install: all
-	install -Dm755 sowm $(DESTDIR)$(BINDIR)/sophy
+# install: all
+#	install -Dm755 sowm $(DESTDIR)$(BINDIR)/sophy
 
-uninstall:
-	rm -f $(DESTDIR)$(BINDIR)/sophy
+# uninstall:
+#	rm -f $(DESTDIR)$(BINDIR)/sophy
 
 clean:
 	rm -f sophy *.o

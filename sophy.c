@@ -24,13 +24,25 @@ typedef struct KeyEvent {
     Arg arg;
 } KeyEvent;
 
-void spawn(Arg *a);
 void kill(Arg *a);
-void focus(client *c);
+void spawn(Arg *a);
+void grabkeys(void);
+void focus(client *a);
 void keypress(XEvent *e);
+void maprequest(XEvent *e);
+void enternotify(XEvent *e);
 void buttonpress(XEvent *e);
 
 #include "config.h"
+
+void kill(Arg *a) {
+	fprintf(stderr, "call 1\n");
+
+	if (!cur) return;
+	// if (cur->w == root) return;
+	
+	XKillClient(dpy, cur->w);
+}
 
 void spawn(Arg *a) {
     if (fork() == 0) {
@@ -40,11 +52,24 @@ void spawn(Arg *a) {
 	}
 }
 
-void kill(Arg *a) {
-	if (!cur) return;
-	if (cur->w == root) return;
-	
-	XKillClient(dpy, cur->w);	
+void grabkeys(void) {
+    KeyCode code;
+
+    // Ungrab first, so we don't duplicate
+    XUngrabKey(dpy, AnyKey, AnyModifier, root);
+
+    for (unsigned int i = 0; i < sizeof(keys)/sizeof(*keys); i++) {
+        code = XKeysymToKeycode(dpy, keys[i].key);
+        if (code) {
+            XGrabKey(dpy,
+                     code,
+                     keys[i].modifier,
+                     root,
+                     True,              // report key events to WM
+                     GrabModeAsync,     // don’t freeze keyboard
+                     GrabModeAsync);    // don’t freeze pointer
+        }
+    }
 }
 
 void focus(client *c) {
@@ -71,6 +96,25 @@ void keypress(XEvent *e) {
             keys[i].func(&keys[i].arg); // if pressed keys are  matching any existing binding it calls associated with that binding function
 }
 
+void maprequest(XEvent *e) {
+    XMapRequestEvent *ev = &e->xmaprequest;
+    XSelectInput(dpy, ev->window, EnterWindowMask | FocusChangeMask);
+    XMapWindow(dpy, ev->window);
+
+    client c = { .w = ev->window };
+    focus(&c);
+}
+
+void enternotify(XEvent *e) {
+	XCrossingEvent *ev = &e->xcrossing;
+
+	if (ev->window == root) return;
+
+	client c = { .w = ev->window };
+	focus(&c);
+	// XRaiseWindow(dpy, ev->window);
+}
+
 void buttonpress(XEvent *e) {
 	fprintf(stderr, "mouse button clicked\n");
 
@@ -78,14 +122,14 @@ void buttonpress(XEvent *e) {
     if (w == None) return;
 
 	client c = { .w = w };
-	focus(&c);
     XRaiseWindow(dpy, w);
-    // XSetInputFocus(dpy, w, RevertToParent, CurrentTime);
 }
 
 static void (*eventhandler[])(XEvent *e) = {
     [KeyPress] 	  = keypress,
 	[ButtonPress] = buttonpress,
+	[EnterNotify] = enternotify,
+	[MapRequest]  = maprequest,
 };
 
 int main(void) {
@@ -94,13 +138,16 @@ int main(void) {
         return 1;
     }
     root = DefaultRootWindow(dpy);
-    XSelectInput(dpy, root,
-				 // SubstructureNotifyMask |
-				 // SubstructureRedirectMask |
-				 ButtonPressMask |
-				 KeyPressMask);
 
-	XDefineCursor(dpy, root, XCreateFontCursor(dpy, 2)); // 24 - circle | 126 - star 
+	grabkeys();
+
+    XSelectInput(dpy, root,
+				 SubstructureNotifyMask | SubstructureRedirectMask |
+				 ButtonPressMask);
+				 // EnterWindowMask |
+				 // FocusChangeMask);
+
+	XDefineCursor(dpy, root, XCreateFontCursor(dpy, 2));
 
     XEvent event;
     for (;;) {
