@@ -1,6 +1,6 @@
 #define MOD Mod4Mask
 
-char *terminal[] = {"urxvt",   0};
+char *terminal[] = {"xterm",   0};
 char *clock[]	 = {"xclock",  0};
 
 struct KeyEvent keys[] = {

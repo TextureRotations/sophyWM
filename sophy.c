@@ -5,34 +5,16 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-typedef struct client {
-    Window w;
-} client;
+#include "sophy.h"
 
 static Window  cur;
 static Display *dpy;
 static Window  root;
 
-typedef struct Arg {
-    char **v;
-} Arg;
-
-typedef struct KeyEvent {
-    unsigned int modifier;
-    KeySym key;
-    void (*func)(Arg *a);
-    Arg arg;
-} KeyEvent;
-
-void kill(Arg *a);
-void spawn(Arg *a);
-void grabkeys(void);
-void focus(client *a);
-void keypress(XEvent *e);
-void maprequest(XEvent *e);
-void enternotify(XEvent *e);
-void buttonpress(XEvent *e);
-void destroynotify(XEvent *e);
+static int moving = 0;
+static int drag_start_x, drag_start_y;
+static int win_start_x, win_start_y;
+static Window drag_win;
 
 #include "config.h"
 
@@ -111,11 +93,48 @@ void enternotify(XEvent *e) {
     focus(&c);
 }
 
+void motionnotify(XEvent *e) {
+    if (!moving) return;
+
+    int dx = e->xmotion.x_root - drag_start_x;
+    int dy = e->xmotion.y_root - drag_start_y;
+
+    XMoveWindow(dpy, drag_win,
+                win_start_x + dx,
+                win_start_y + dy);
+}
+
 void buttonpress(XEvent *e) {
     Window w = e->xbutton.subwindow;
-    if (w == None) return;
+    if (!w || w == root) return;
 
-    XRaiseWindow(dpy, w);
+    if (e->xbutton.button == Button1) {
+        XRaiseWindow(dpy, w);
+
+        if (e->xbutton.state & Mod4Mask) {
+            moving = 1;
+            drag_win = w;
+            drag_start_x = e->xbutton.x_root;
+            drag_start_y = e->xbutton.y_root;
+
+            XWindowAttributes attr;
+            XGetWindowAttributes(dpy, w, &attr);
+            win_start_x = attr.x;
+            win_start_y = attr.y;
+
+            XGrabPointer(dpy, root, False,
+                         PointerMotionMask | ButtonReleaseMask,
+                         GrabModeAsync, GrabModeAsync,
+                         None, None, CurrentTime);
+        }
+    }
+}
+
+void buttonrelease(XEvent *e) {
+    if (moving) {
+        moving = 0;
+        XUngrabPointer(dpy, CurrentTime);
+    }
 }
 
 void destroynotify(XEvent *e) {
@@ -127,12 +146,30 @@ void destroynotify(XEvent *e) {
     }
 }
 
+void configurerequest(XEvent *e) {
+    XConfigureRequestEvent *ev = &e->xconfigurerequest;
+    XWindowChanges wc;
+
+    wc.x = ev->x;
+    wc.y = ev->y;
+    wc.width = ev->width;
+    wc.height = ev->height;
+    wc.border_width = ev->border_width;
+    wc.sibling = ev->above;
+    wc.stack_mode = ev->detail;
+
+    XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
+}
+
 static void (*eventhandler[])(XEvent *e) = {
     [KeyPress]    = keypress,
     [ButtonPress] = buttonpress,
     [EnterNotify] = enternotify,
     [MapRequest]  = maprequest,
 	[DestroyNotify] = destroynotify,
+	[ConfigureRequest] = configurerequest,
+	[MotionNotify]   = motionnotify,
+	[ButtonRelease]  = buttonrelease,
 };
 
 int main(void) {
@@ -144,9 +181,9 @@ int main(void) {
 
     grabkeys();
 
-    XSelectInput(dpy, root,
-                 SubstructureNotifyMask | SubstructureRedirectMask |
-                 ButtonPressMask);
+	XSelectInput(dpy, root,
+    			 SubstructureNotifyMask | SubstructureRedirectMask |
+    			 ButtonPressMask | KeyReleaseMask);
 
     XDefineCursor(dpy, root, XCreateFontCursor(dpy, 2));
 
