@@ -45,7 +45,7 @@ void grabkeys(void) {
     XUngrabKey(dpy, AnyKey, AnyModifier, root);
 
     for (unsigned int i = 0; i < sizeof(keys)/sizeof(*keys); i++) {
-        code = XKeysymToKeycode(dpy, keys[i].key); // THIS
+        code = XKeysymToKeycode(dpy, keys[i].key);
         if (code) {
             XGrabKey(dpy,
                      code,
@@ -56,6 +56,24 @@ void grabkeys(void) {
                      GrabModeAsync);
         }
     }
+}
+
+void grabbuttons(void) {
+    XUngrabButton(dpy, AnyButton, AnyModifier, root);
+
+    XGrabButton(dpy,
+                Button1, Mod4Mask,
+                root, True,
+                ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+                GrabModeAsync, GrabModeAsync,
+                None, None);
+
+    XGrabButton(dpy,
+                Button3, Mod4Mask,
+                root, True,
+                ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+                GrabModeAsync, GrabModeAsync,
+                None, None);
 }
 
 void focus(client *c) {
@@ -220,6 +238,7 @@ int main(void) {
     root = DefaultRootWindow(dpy);
 
     grabkeys();
+    grabbuttons();
 
     XSelectInput(dpy, root,
                  SubstructureNotifyMask | SubstructureRedirectMask |

@@ -21,6 +21,7 @@ void configurerequest(XEvent *e);
 void destroynotify(XEvent *e);
 void enternotify(XEvent *e);
 void focus(client *a);
+void grabbuttons(void);
 void grabkeys(void);
 void keypress(XEvent *e);
 void kill(Arg *a);
