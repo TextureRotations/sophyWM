@@ -1,24 +1,40 @@
-CFLAGS += -std=c99 -Wall -Wextra -pedantic -Wold-style-declaration
-CFLAGS += -Wmissing-prototypes -Wno-unused-parameter
+# Compiler flags
+CC      ?= gcc
+CFLAGS  += -std=c99 -Wall -Wextra -pedantic -Wold-style-declaration
+CFLAGS  += -Wmissing-prototypes -Wno-unused-parameter
+LDFLAGS ?= 
+LDLIBS  ?= -lX11
+
+# Installation paths
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin
-CC     ?= gcc
 
-all: sophy
+# Source and target
+SRC    = sophy.c
+OBJ    = $(SRC:.c=.o)
+TARGET = sophy
 
-# config.h:
-# 	cp config.def.h config.h
+# Default target
+all: $(TARGET)
 
-sophy: sophy.c config.h Makefile
-	$(CC) -O3 $(CFLAGS) -o $@ $< -lX11 $(LDFLAGS)
+# Build executable
+$(TARGET): $(OBJ) config.h Makefile
+	$(CC) $(CFLAGS) -O3 -o $@ $(OBJ) $(LDFLAGS) $(LDLIBS)
 
-# install: all
-#	install -Dm755 sowm $(DESTDIR)$(BINDIR)/sophy
+# Compile objects
+%.o: %.c config.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
-# uninstall:
-#	rm -f $(DESTDIR)$(BINDIR)/sophy
+# Installation
+install: all
+	install -Dm755 $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
 
+uninstall:
+	rm -f $(DESTDIR)$(BINDIR)/$(TARGET)
+
+# Clean
 clean:
-	rm -f sophy *.o
+	rm -f $(TARGET) $(OBJ)
 
 .PHONY: all install uninstall clean
+
