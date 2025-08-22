@@ -9,7 +9,7 @@ typedef struct client {
     Window w;
 } client;
 
-static Window  cur;   // <— store focused window directly
+static Window  cur;
 static Display *dpy;
 static Window  root;
 
@@ -19,7 +19,7 @@ typedef struct Arg {
 
 typedef struct KeyEvent {
     unsigned int modifier;
-    unsigned int key;
+    KeySym key;
     void (*func)(Arg *a);
     Arg arg;
 } KeyEvent;
@@ -32,12 +32,11 @@ void keypress(XEvent *e);
 void maprequest(XEvent *e);
 void enternotify(XEvent *e);
 void buttonpress(XEvent *e);
+void destroynotify(XEvent *e);
 
 #include "config.h"
 
 void kill(Arg *a) {
-    fprintf(stderr, "call 1\n");
-
     if (!cur || cur == root) return;
     XKillClient(dpy, cur);
 }
@@ -54,8 +53,9 @@ void grabkeys(void) {
     KeyCode code;
 
     XUngrabKey(dpy, AnyKey, AnyModifier, root);
-
+	
     for (unsigned int i = 0; i < sizeof(keys)/sizeof(*keys); i++) {
+		// fprintf(stderr, "keys[%d].key = %lu\n", i, keys[i].key);
         code = XKeysymToKeycode(dpy, keys[i].key);
         if (code) {
             XGrabKey(dpy,
@@ -118,11 +118,21 @@ void buttonpress(XEvent *e) {
     XRaiseWindow(dpy, w);
 }
 
+void destroynotify(XEvent *e) {
+    XDestroyWindowEvent *ev = &e->xdestroywindow;
+
+    if (ev->window == cur) {
+        fprintf(stderr, "window 0x%lx destroyed, clearing cur\n", cur);
+        cur = 0;
+    }
+}
+
 static void (*eventhandler[])(XEvent *e) = {
     [KeyPress]    = keypress,
     [ButtonPress] = buttonpress,
     [EnterNotify] = enternotify,
     [MapRequest]  = maprequest,
+	[DestroyNotify] = destroynotify,
 };
 
 int main(void) {
