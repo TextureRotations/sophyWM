@@ -1,1 +1,1 @@
-# sophyWM
+# SWM
